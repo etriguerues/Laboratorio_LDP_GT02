@@ -1,102 +1,49 @@
 #!/bin/bash
 export LANG=C.UTF-8
 
-# Colores para la salida en consola
 GREEN='\033[0;32m'
 RED='\033[0;31m'
 YELLOW='\033[1;33m'
-NC='\033[0;0m' # Sin color
+NC='\033[0;0m' 
 
 echo "--------------------------------------------------------"
-echo "Iniciando validación: Algoritmo Cajero Automático (PIN)"
+echo "Validación Lab 2: Procesador de Nómina (Python)"
 echo "--------------------------------------------------------"
 
-# Variable de control de errores
 FAILED=0
+FILE_PY=$(find . -name "*.py" | head -n 1)
+[ -z "$FILE_PY" ] && { echo -e "${RED}[ERROR] Sin archivo .py.${NC}"; exit 1; }
+echo -e "Archivo detectado: ${YELLOW}$FILE_PY${NC}\n"
 
-# Buscar el archivo .psc
-FILE_PSC=$(find . -name "*.psc" | head -n 1)
+# --- PASO 1: CONSTANTES Y DICCIONARIOS ---
+echo -e "${YELLOW}PASO 1: Verificando Diccionario y Constantes...${NC}"
+if grep -qE "TASA_IMPUESTO\s*=\s*0\.12" "$FILE_PY"; then echo -e "${GREEN}[OK] Constante de impuesto correcta.${NC}"; else echo -e "${RED}[ERROR] Falta TASA_IMPUESTO = 0.12.${NC}"; FAILED=1; fi
+if grep -qE "empleado\s*=\s*\{" "$FILE_PY" && grep -q "salario_final"; then echo -e "${GREEN}[OK] Diccionario 'empleado' detectado.${NC}"; else echo -e "${RED}[ERROR] Falta el diccionario 'empleado' con 'salario_final'.${NC}"; FAILED=1; fi
 
-if [ -z "$FILE_PSC" ]; then
-    echo -e "${RED}[ERROR] No se encontró ningún archivo .psc (PSeInt).${NC}"
-    exit 1
+# --- PASO 2: FUNCIONES Y CASTING ---
+echo -e "\n${YELLOW}PASO 2: Verificando Funciones y Casting Fuerte...${NC}"
+if grep -qE "def\s+calcular_pago" "$FILE_PY" && grep -qE "float\s*\(" "$FILE_PY"; then
+    echo -e "${GREEN}[OK] Función y Casting a float correctos.${NC}"
+else
+    echo -e "${RED}[ERROR] Falla en def calcular_pago o falta el float().${NC}"; FAILED=1
 fi
 
-echo -e "Archivo detectado: ${YELLOW}$FILE_PSC${NC}"
+# --- PASO 3: MUTABILIDAD ---
+echo -e "\n${YELLOW}PASO 3: Verificando Mutabilidad (Actualización Diccionario)...${NC}"
+if grep -qE "empleado\[[\"']salario_final[\"']\]\s*=" "$FILE_PY"; then echo -e "${GREEN}[OK] Asignación directa al diccionario correcta.${NC}"; else echo -e "${RED}[ERROR] No se actualizó la clave 'salario_final'.${NC}"; FAILED=1; fi
 
-# --- PASO 1: VERIFICAR FUNCIÓN OBLIGATORIA ---
-echo -e "\n${YELLOW}PASO 1: Verificando Función VerificarPIN...${NC}"
+# --- PASO 4: GARBAGE COLLECTOR ---
+echo -e "\n${YELLOW}PASO 4: Verificando Garbage Collector...${NC}"
+if grep -qE "empleado\s*=\s*None" "$FILE_PY"; then echo -e "${GREEN}[OK] Diccionario limpiado de la RAM.${NC}"; else echo -e "${RED}[ERROR] Falta empleado = None.${NC}"; FAILED=1; fi
 
-# Validar definición de la función y parámetros
-if grep -qi "Funcion.*VerificarPIN" "$FILE_PSC"; then
-    echo -e "${GREEN}[OK] Función 'VerificarPIN' detectada.${NC}"
-else
-    echo -e "${RED}[ERROR] No se encontró la función obligatoria 'VerificarPIN'.${NC}"
+# --- PASO 5: COMPILACIÓN Y SINTAXIS ---
+echo -e "\n${YELLOW}PASO 5: Verificando sintaxis de Python...${NC}"
+if python3 -m py_compile "$FILE_PY" 2>/dev/null; then 
+    echo -e "${GREEN}[OK] Sintaxis correcta.${NC}"
+else 
+    echo -e "${RED}[ERROR] Error de sintaxis en Python.${NC}"
+    python3 -m py_compile "$FILE_PY"
     FAILED=1
 fi
 
-# Validar que retorne un valor Lógico (Verdadero/Falso)
-if grep -qi "Como Logico" "$FILE_PSC"; then
-    echo -e "${GREEN}[OK] Definición de retorno Lógico encontrada.${NC}"
-else
-    echo -e "${RED}[ERROR] No se detectó la definición de retorno 'Como Logico'.${NC}"
-    FAILED=1
-fi
-
-# --- PASO 2: VERIFICAR VARIABLES Y VALORES INICIALES ---
-echo -e "\n${YELLOW}PASO 2: Verificando Inicialización de Variables...${NC}"
-
-# Verificar PIN_CORRECTO = 1234
-if grep -q "1234" "$FILE_PSC"; then
-    echo -e "${GREEN}[OK] PIN inicializado correctamente (1234).${NC}"
-else
-    echo -e "${RED}[ERROR] No se encontró el PIN_CORRECTO con valor 1234.${NC}"
-    FAILED=1
-fi
-
-# Verificar contador de intentos iniciando en 1
-if grep -qE "intentos\s*<-\s*1" "$FILE_PSC"; then
-    echo -e "${GREEN}[OK] Contador 'intentos' inicia en 1.${NC}"
-else
-    echo -e "${RED}[ERROR] El contador 'intentos' debe iniciar en 1.${NC}"
-    FAILED=1
-fi
-
-# --- PASO 3: LÓGICA DEL BUCLE MIENTRAS ---
-echo -e "\n${YELLOW}PASO 3: Verificando Ciclo de Intentos...${NC}"
-
-# Validar condición doble: intentos <= 3 Y login_exitoso = Falso
-if grep -qiE "Mientras.*intentos.*<=.*3.*Y.*login_exitoso.*=.*Falso" "$FILE_PSC"; then
-    echo -e "${GREEN}[OK] Condición del ciclo Mientras correcta (Intentos + Bandera).${NC}"
-else
-    echo -e "${RED}[ERROR] El ciclo Mientras debe validar (intentos <= 3) Y (login_exitoso = Falso).${NC}"
-    FAILED=1
-fi
-
-# Validar incremento del contador
-if grep -qE "intentos\s*<-\s*intentos\s*\+\s*1" "$FILE_PSC"; then
-    echo -e "${GREEN}[OK] Incremento de intentos detectado.${NC}"
-else
-    echo -e "${RED}[ERROR] No se encontró el incremento del contador: intentos <- intentos + 1.${NC}"
-    FAILED=1
-fi
-
-# --- PASO 4: MENSAJES FINALES ---
-echo -e "\n${YELLOW}PASO 4: Verificando Mensajes de Salida...${NC}"
-
-if grep -qi "Acceso Concedido" "$FILE_PSC" && grep -qi "Tarjeta Bloqueada" "$FILE_PSC"; then
-    echo -e "${GREEN}[OK] Mensajes de 'Acceso Concedido' y 'Tarjeta Bloqueada' configurados.${NC}"
-else
-    echo -e "${RED}[ERROR] Faltan los mensajes finales de diagnóstico (Acceso/Bloqueo).${NC}"
-    FAILED=1
-fi
-
-# --- RESULTADO FINAL ---
-echo -e "\n--------------------------------------------------------"
-if [ $FAILED -eq 0 ]; then
-    echo -e "${GREEN}✔ LABORATORIO: CAJERO APROBADO${NC}"
-    exit 0
-else
-    echo -e "${RED}✘ SE ENCONTRARON DEFICIENCIAS EN LA LÓGICA${NC}"
-    exit 1
-fi
+[ $FAILED -eq 0 ] && { echo -e "\n${GREEN}✔ LABORATORIO 2 APROBADO${NC}"; exit 0; } || { echo -e "\n${RED}✘ LAB FALLIDO${NC}"; exit 1; }
