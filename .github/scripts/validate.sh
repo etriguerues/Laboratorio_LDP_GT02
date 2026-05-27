@@ -8,7 +8,7 @@ FAILED=0
 FILE_PY=$(find . -name "*.py" | head -n 1)
 [ -z "$FILE_PY" ] && { echo -e "${RED}[ERROR] Sin archivo .py.${NC}"; exit 1; }
 
-# Validar Búsqueda Lineal
+# Validar Búsqueda Lineal.
 if grep -qE "def buscar_paciente_lineal" "$FILE_PY" && grep -qE "range\s*\(\s*len\s*\(" "$FILE_PY" && grep -qE "return\s+-1" "$FILE_PY"; then echo -e "${GREEN}✔ Búsqueda Lineal OK${NC}"; else echo -e "${RED}✘ Falla en buscar_paciente_lineal (Falta range(len()) o return -1)${NC}"; FAILED=1; fi
 
 # Validar Búsqueda Binaria
